@@ -1,0 +1,8 @@
+version: 1.0.1
+files:
+  - url: electron-app-updater-demo-1.0.1-setup.exe
+    sha512: dtOMMc1+NHzGiG3QYYfSLG++uogIhZ16V2mqDE/I9KpMZy/74iNh/uceRJZQ6o+pUEYmvzAY04ZlwGbfm8zOPQ==
+    size: 513749550
+path: electron-app-updater-demo-1.0.1-setup.exe
+sha512: dtOMMc1+NHzGiG3QYYfSLG++uogIhZ16V2mqDE/I9KpMZy/74iNh/uceRJZQ6o+pUEYmvzAY04ZlwGbfm8zOPQ==
+releaseDate: '2025-03-31T05:15:14.718Z'
