@@ -26,8 +26,6 @@ const isDev = is.dev
 
 // 是否是手动检查更新
 let isManualCheck = false
-// 是否正在显示更新对话框
-let isShowingUpdateDialog = false
 // 是否正在检查更新
 let isCheckingForUpdates = false
 
@@ -72,58 +70,34 @@ function setupAutoUpdater(mainWindow: BrowserWindow): void {
   // 检查更新出错
   autoUpdater.on('error', (err) => {
     log.error('更新错误', err)
-    dialog.showMessageBox(mainWindow, {
-      type: 'error',
-      title: '更新错误',
-      message: '检查更新失败',
-      detail: err.message
-    })
+    
+    // 只通知渲染进程出错，不再显示原生对话框
+    if (mainWindow) {
+      mainWindow.webContents.send('update-error', { message: err.message })
+    }
   })
 
   // 有可用更新
   autoUpdater.on('update-available', (info) => {
     log.info('有可用更新', info)
 
-    // 如果已经显示对话框，则不再显示
-    if (isShowingUpdateDialog) {
-      log.info('已经在显示更新对话框，跳过显示')
-      return
+    // 只通知渲染进程有更新可用，不再显示原生对话框
+    if (mainWindow) {
+      mainWindow.webContents.send('update-available', info)
     }
-
-    isShowingUpdateDialog = true
-    dialog
-      .showMessageBox(mainWindow, {
-        type: 'info',
-        title: '发现新版本',
-        message: `发现新版本 ${info.version}`,
-        detail: `当前版本：${app.getVersion()}\n是否现在下载更新？`,
-        buttons: ['是', '否'],
-        cancelId: 1
-      })
-      .then(({ response }) => {
-        isShowingUpdateDialog = false
-        if (response === 0) {
-          autoUpdater.downloadUpdate()
-        }
-      })
   })
 
   // 没有可用更新
   autoUpdater.on('update-not-available', () => {
     log.info('没有可用更新')
-    if (isManualCheck && !isShowingUpdateDialog) {
-      isShowingUpdateDialog = true
-      dialog
-        .showMessageBox(mainWindow, {
-          type: 'info',
-          title: '没有更新',
-          message: '已经是最新版本'
-        })
-        .then(() => {
-          isShowingUpdateDialog = false
-        })
-      isManualCheck = false
+    
+    // 只通知渲染进程没有更新可用，不再显示原生对话框
+    if (mainWindow) {
+      mainWindow.webContents.send('update-not-available')
     }
+    
+    // 重置手动检查标志
+    isManualCheck = false
   })
 
   // 更新下载进度
@@ -133,26 +107,10 @@ function setupAutoUpdater(mainWindow: BrowserWindow): void {
 
   // 更新下载完成
   autoUpdater.on('update-downloaded', () => {
-    if (isShowingUpdateDialog) {
-      log.info('已经在显示更新对话框，跳过显示')
-      return
+    // 只通知渲染进程更新已下载，不再显示原生对话框
+    if (mainWindow) {
+      mainWindow.webContents.send('update-downloaded')
     }
-
-    isShowingUpdateDialog = true
-    dialog
-      .showMessageBox(mainWindow, {
-        type: 'info',
-        title: '更新已下载',
-        message: '更新已下载，将在退出时安装',
-        buttons: ['立即重启', '稍后重启'],
-        cancelId: 1
-      })
-      .then(({ response }) => {
-        isShowingUpdateDialog = false
-        if (response === 0) {
-          autoUpdater.quitAndInstall(false, true)
-        }
-      })
   })
 
   // 检查更新
@@ -218,6 +176,20 @@ ipcMain.on('check-for-updates', () => {
       log.error('手动检查更新出错', err)
       isCheckingForUpdates = false
     })
+})
+
+// 添加下载更新的IPC通信
+ipcMain.on('download-update', () => {
+  log.info('接收到下载更新请求')
+  autoUpdater.downloadUpdate().catch(err => {
+    log.error('下载更新出错', err)
+  })
+})
+
+// 添加安装更新的IPC通信
+ipcMain.on('install-update', () => {
+  log.info('接收到安装更新请求')
+  autoUpdater.quitAndInstall(false, true)
 })
 
 // This method will be called when Electron has finished
